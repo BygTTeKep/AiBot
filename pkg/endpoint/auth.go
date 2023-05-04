@@ -1,0 +1,31 @@
+package endpoint
+
+import (
+	"io"
+	"net/http"
+	"os"
+)
+
+func AuthStabilityAi(ApiKey string) {
+	apiHost, hasApiHost := os.LookupEnv("API_HOST")
+	if !hasApiHost {
+		apiHost = "https://api.stability.ai"
+	}
+	reqUrl := apiHost + "/v1/user/account"
+
+	// Acquire an API key from the environment
+	apiKey := ApiKey
+
+	// Build the request
+	req, _ := http.NewRequest("GET", reqUrl, nil)
+	req.Header.Add("Authorization", "Bearer "+apiKey)
+
+	// Execute the request
+	res, _ := http.DefaultClient.Do(req) // <--------
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	if res.StatusCode != 200 {
+		panic("Non-200 response: " + string(body))
+	}
+}
