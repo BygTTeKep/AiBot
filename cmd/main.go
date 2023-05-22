@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	aibot "github.com/g91TeJl/AiBot"
@@ -29,7 +30,8 @@ func main() {
 	apiKey := viper.GetString("STABILITY_API_KEY")
 	//time.Sleep(1 * time.Minute)
 	//endpoint.AuthStabilityAi(apiKey)
-	aibot.TelegramBot(api, apiKey)
+	ctx := context.Background()
+	aibot.TelegramBot(ctx, api, apiKey)
 }
 
 func initConfig() error {

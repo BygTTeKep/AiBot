@@ -35,7 +35,7 @@ func GenImage(message string, i int, apiKey string) { //имя сменить
 			"height": 512,
 			"width": 512,
 			"samples": 1,
-			"steps": 150}`, message))
+			"steps": 30}`, message))
 	req, _ := http.NewRequest("POST", reqUrl, bytes.NewBuffer(data))
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")

@@ -1,19 +1,69 @@
 package aibot
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"reflect"
 	"strconv"
-	"strings"
 
-	"github.com/g91TeJl/AiBot/pkg/endpoint"
+	"github.com/segmentio/kafka-go"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )
 
-func TelegramBot(api string, apiKey string) {
+const (
+	broker1 = "localhost:9092"
+	//broker2 = "localhost:9094"
+)
+
+func produce(ctx context.Context, msg string) {
+	w := kafka.NewWriter(kafka.WriterConfig{
+		Brokers: []string{broker1},
+		Topic:   "test2",
+	})
+	key := 0
+	for {
+		err := w.WriteMessages(ctx, kafka.Message{
+			Key:   []byte(strconv.Itoa(key)),
+			Value: []byte(msg),
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		key++
+		//breakew
+		return
+	}
+}
+
+func consume(ctx context.Context) string {
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{broker1},
+		Topic:   "test2",
+		//GroupID: "te2t",
+		//StartOffset: kafka.LastOffset,
+	})
+
+	r.SetOffset(-1)
+	//r.FetchMessage()
+	//r.SetOffsetAt(ctx, time.Time{})
+	//r.SetOffset(-2)
+	fmt.Println(r.Offset())
+	for {
+		msg, err := r.ReadMessage(ctx)
+
+		if err != nil {
+			return err.Error()
+		}
+		//r.CommitMessages(ctx, msg)
+		return string(msg.Value)
+	}
+
+}
+
+func TelegramBot(ctx context.Context, api string, apiKey string) {
 	fmt.Println("start")
 	//Создаем бота
 	bot, err := tgbotapi.NewBotAPI(api)
@@ -35,59 +85,37 @@ func TelegramBot(api string, apiKey string) {
 
 			switch update.Message.Text {
 			case "/start":
-
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hello, I'm AiBot. I can generate images")
 				bot.Send(msg)
-
-			// case "/number_of_users":
-
-			// 	if os.Getenv("DB_SWITCH") == "on" {
-
-			// 		//Присваиваем количество пользоватьелей использовавших бота в num переменную
-			// 		num, err := service.Data.GetNumberOfUsers()
-			// 		if err != nil {
-
-			// 			//Отправлем сообщение
-			// 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Database error.")
-			// 			bot.Send(msg)
-			// 		}
-
-			// 		//Создаем строку которая содержит колличество пользователей использовавших бота
-			// 		ans := fmt.Sprintf("%d peoples used me for search information in Wikipedia", num)
-
-			// 		//Отправлем сообщение
-			// 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, ans)
-			// 		bot.Send(msg)
-			// 	} else {
-
-			// 		//Отправлем сообщение
-			// 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Database not connected, so i can't say you how many peoples used me.")
-			// 		bot.Send(msg)
-			// 	}
 			default:
-				var count int
+				//	var count int
 				message := update.Message.Text
-				fmt.Println(message)
-				nc := strings.Split(message, " ")
-				if len(nc) != 1 {
-					count, _ = strconv.Atoi(nc[1])
-				} else {
-					count = 1
-				}
-				wait := tgbotapi.NewMessage(update.Message.Chat.ID, "please Wait")
-				bot.Send(wait)
-				// в отдельной горутине
-				for i := 1; i <= count; i++ {
-					endpoint.GenImage(nc[0], i, apiKey)
-					l := strconv.Itoa(i)
-					data, err := ioutil.ReadFile(fmt.Sprintf("./out/%s_%s.png", nc[0], l))
-					if err != nil {
-						log.Println(err)
-					}
-					b := tgbotapi.FileBytes{Name: "image.png", Bytes: data}
-					msg := tgbotapi.NewPhotoUpload(update.Message.Chat.ID, b)
-					bot.Send(msg)
-				}
+				go produce(ctx, message)
+				//fmt.Println(message)
+				// nc := strings.Split(message, " ")
+				// if len(nc) != 1 {
+				// 	count, _ = strconv.Atoi(nc[1])
+				// } else {
+				// 	count = 1
+				// }
+				//time.Sleep(time.Second * 3)
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, consume(ctx))
+				fmt.Println(msg)
+				bot.Send(msg)
+				// wait := tgbotapi.NewMessage(update.Message.Chat.ID, "please Wait")
+				// bot.Send(wait)
+				// // в отдельной горутине
+				// for i := 1; i <= count; i++ {
+				// 	endpoint.GenImage(nc[0], i, apiKey)
+				// 	l := strconv.Itoa(i)
+				// 	data, err := ioutil.ReadFile(fmt.Sprintf("./out/%s_%s.png", nc[0], l))
+				// 	if err != nil {
+				// 		log.Println(err)
+				// 	}
+				// 	b := tgbotapi.FileBytes{Name: "image.png", Bytes: data}
+				// 	msg := tgbotapi.NewPhotoUpload(update.Message.Chat.ID, b)
+				// 	bot.Send(msg)
+				// }
 			}
 
 		} else {
